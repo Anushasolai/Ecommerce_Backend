@@ -8,5 +8,6 @@ export const checkConnection = async()=>{
    }
     catch(error){
         console.log("DataSource not Initialized")
+        console.log(error)
     }
 }
