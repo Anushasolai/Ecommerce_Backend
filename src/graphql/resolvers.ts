@@ -1,41 +1,67 @@
-import { Product } from "../entities/ProductEntity";
-import { AppSource } from "../config/ormconfig";
 import axios from "axios";
+import { Repository } from "typeorm";
+import { Product } from "../entities/ProductEntity";
+import { error } from "console";
+
+const EXTERNAL_API_URL = "https://dummyjson.com/products";
 
 export const resolvers = {
   Query: {
     products: async (
       _: any,
-      { category, searchText }: { category?: string; searchText?: string }
+      { category }: { category?: string },
+      context: { productRepository: Repository<Product> }
     ) => {
-      const productRepository = AppSource.getRepository(Product);
-      let query = productRepository.createQueryBuilder("product");
-
-      if (category) {
-        query = query.where("product.category = :category", { category });
+      try {
+        return await context.productRepository.find({ where: { category } });
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error fetching products by category:", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error(
+            "Unexpected error fetching products by category:",
+            error
+          );
+        }
+        throw new Error("Failed to fetch products");
       }
-
-      if (searchText) {
-        query = query.andWhere("LOWER(product.title) LIKE :searchText", {
-          searchText: `%${searchText.toLowerCase()}%`,
-        });
-      }
-
-      return await query.getMany();
     },
 
-    product: async (_: any, { id }: { id: number }) => {
-      const productRepository = AppSource.getRepository(Product);
-      return await productRepository.findOneBy({ id });
+    product: async (
+      _: any,
+      { id }: { id: number },
+      context: { productRepository: Repository<Product> }
+    ) => {
+      try {
+        const product = await context.productRepository.findOneBy({ id });
+        if (!product) throw new Error("Product not found");
+        return product;
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error fetching product by ID:", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error("Unexpected error fetching product by ID:", error);
+        }
+        throw new Error("Failed to fetch product");
+      }
     },
   },
-  Mutation: {
-    fetchAndStoreProducts: async () => {
-      const productRepository = AppSource.getRepository(Product);
 
+  Mutation: {
+    fetchAndStoreProducts: async (
+      parent: any,
+      args: any,
+      { productRepository }: { productRepository: Repository<Product> }
+    ) => {
       try {
-        const response = await axios.get("https://dummyjson.com/products");
-        const products = response.data.products;
+        const response = await axios.get(EXTERNAL_API_URL);
+        const products = response.data.products || [];
 
         const transformedProducts = products.map((product: any) => ({
           id: product.id,
@@ -43,90 +69,102 @@ export const resolvers = {
           category: product.category,
           price: product.price,
           rating: product.rating,
-          image: product.images[0],
+          image:
+            product.images && product.images.length > 0
+              ? product.images[0]
+              : "https://example.com/default-image.jpg",
         }));
 
         await productRepository.save(transformedProducts);
-
         return transformedProducts;
-      } catch (error) {
-        console.error("Error fetching and storing products:", error);
-        throw new Error("Failed to fetch and store products");
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error("Error fetching and storing products:", {
+            message: error.message,
+            stack: error.stack,
+            config: (error as any).config,
+            response: (error as any).response?.data,
+          });
+          throw new Error("Failed to fetch and store products");
+        } else {
+          console.error("An unknown error occurred:", error);
+          throw new Error("Failed to fetch and store products");
+        }
       }
     },
+
     createProduct: async (
       _: any,
-      {
-        title,
-        category,
-        price,
-        rating,
-        image,
-      }: {
-        title: string;
-        category: string;
-        price: number;
-        rating: number;
-        image: string;
-      }
+      { title, category, price, rating, image }: any,
+      context: { productRepository: Repository<Product> }
     ) => {
       try {
-        const productRepository = AppSource.getRepository(Product);
-
-        const product = productRepository.create({
+        const product = context.productRepository.create({
           title,
           category,
           price,
           rating,
           image,
         });
-
-        await productRepository.save(product);
+        await context.productRepository.save(product);
         return product;
       } catch (error) {
-        console.error("Error creating product:", error);
+        if (error instanceof Error) {
+          console.error("Error creating product:", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error("Unexpected error creating product:", error);
+        }
         throw new Error("Failed to create product");
       }
     },
+
     updateProduct: async (
       _: any,
-      {
-        id,
-        title,
-        category,
-        price,
-        rating,
-        image,
-      }: {
-        id: number;
-        title?: string;
-        category?: string;
-        price?: number;
-        rating?: number;
-        image?: string;
-      }
+      { id, title, category, price, rating, image }: any,
+      context: { productRepository: Repository<Product> }
     ) => {
-      const productRepository = AppSource.getRepository(Product);
-      let product = await productRepository.findOneBy({ id });
+      try {
+        const product = await context.productRepository.findOneBy({ id });
+        if (!product) throw new Error("Product not found");
 
-      if (!product) {
-        console.error(`Product with ID ${id} not found`);
-        throw new Error("Product not found");
+        Object.assign(product, { title, category, price, rating, image });
+        await context.productRepository.save(product);
+        return product;
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error updating product:", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error("Unexpected error updating product:", error);
+        }
+        throw new Error("Failed to update product");
       }
-
-      if (title !== undefined) product.title = title;
-      if (category !== undefined) product.category = category;
-      if (price !== undefined) product.price = price;
-      if (rating !== undefined) product.rating = rating;
-      if (image !== undefined) product.image = image;
-
-      await productRepository.save(product);
-      return product;
     },
-    deleteProduct: async (_: any, { id }: { id: number }) => {
-      const productRepository = AppSource.getRepository(Product);
-      const result = await productRepository.delete(id);
-      return result.affected !== 0;
+
+    deleteProduct: async (
+      _: any,
+      { id }: { id: number },
+      context: { productRepository: Repository<Product> }
+    ) => {
+      try {
+        const result = await context.productRepository.delete({ id });
+        return result.affected ? true : false;
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error("Error deleting product:", {
+            message: error.message,
+            stack: error.stack,
+          });
+        } else {
+          console.error("Unexpected error deleting product:", error);
+        }
+        throw new Error("Failed to delete product");
+      }
     },
   },
 };

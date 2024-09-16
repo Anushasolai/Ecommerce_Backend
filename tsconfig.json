@@ -1,25 +1,20 @@
 {
   "compilerOptions": {
-     "lib": [
-        "es5",
-        "es6"
-     ],
-     "target": "es2017",
-     "module": "commonjs",
-     "moduleResolution": "node",
-     "outDir": "./build",
-     "emitDecoratorMetadata": true,
-     "experimentalDecorators": true,
-     "sourceMap": true,
-     "esModuleInterop": true ,
-     "rootDir": "src",
-     "forceConsistentCasingInFileNames": true,
-     "strict": true,
-     "strictPropertyInitialization": false,
-     "skipLibCheck": true,
-     
+    "lib": ["es2017"],
+    "target": "es2017",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./build",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "rootDir": "src",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules"]
 }
- 
-  
