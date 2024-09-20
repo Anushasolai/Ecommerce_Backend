@@ -8,18 +8,21 @@ import { Server } from "http";
 import dotenv from "dotenv";
 import { checkConnection } from ".";
 import { Product } from "./entities/ProductEntity";
+import { User } from "./entities/UserEntity";
+import { Cart } from "./entities/CartEntity";
+import { CartItem } from "./entities/CartItemEntity";
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json());
-
 app.use(
   cors({
     origin: "http://localhost:5173",
     methods: "GET,POST",
-    allowedHeaders: "Content-Type",
+
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -30,8 +33,28 @@ const server = new ApolloServer({
     if (!AppSource.isInitialized) {
       await AppSource.initialize();
     }
+
     const productRepository = AppSource.getRepository(Product);
-    return { productRepository };
+    const userRepository = AppSource.getRepository(User);
+    const cartRepository = AppSource.getRepository(Cart);
+    const cartItemRepository = AppSource.getRepository(CartItem);
+
+    return {
+      productRepository,
+      userRepository,
+      cartRepository,
+      cartItemRepository,
+    };
+  },
+
+  formatError: (err) => {
+    console.error("GraphQL Error:", err);
+    return {
+      message: err.message,
+      code: err.extensions?.code || "INTERNAL_SERVER_ERROR",
+      path: err.path,
+      locations: err.locations,
+    };
   },
 });
 
@@ -43,18 +66,24 @@ export const startServer = async () => {
     throw new Error("Server is already running");
   }
 
-  await server.start();
-  server.applyMiddleware({ app: app as any, path: "/graphql" });
+  try {
+    await server.start();
 
-  const PORT = process.env.PORT || 4000;
-  serverInstance = app.listen(PORT, () => {
-    console.log(
-      `Server is running on http://localhost:${PORT}${server.graphqlPath}`
-    );
-    checkConnection();
-  });
+    server.applyMiddleware({ app: app as any, path: "/graphql" });
 
-  return serverInstance;
+    const PORT = process.env.PORT || 4000;
+    serverInstance = app.listen(PORT, () => {
+      console.log(
+        `Server is running on http://localhost:${PORT}${server.graphqlPath}`
+      );
+      checkConnection();
+    });
+
+    return serverInstance;
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    throw new Error("Failed to start server");
+  }
 };
 
 export const stopServer = async () => {

@@ -11,12 +11,12 @@ export class Product {
   @Column()
   category: string;
 
-  @Column({ type: 'float' })
+  @Column({ type: "float" })
   price: number;
 
-  @Column({ type: 'float' })
+  @Column({ type: "float" })
   rating: number;
 
-  @Column({ type: 'varchar', nullable: true }) 
+  @Column({ type: "varchar", nullable: true })
   image: string | null;
 }
