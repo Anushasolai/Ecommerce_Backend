@@ -1,20 +1,23 @@
-import { ApolloServer } from 'apollo-server';
-import { gql } from 'apollo-server';
-import { typeDefs } from '../../graphql/schema';
-import { resolvers } from '../../graphql/resolvers';
-import { AppSource } from '../../config/ormconfig';
-import { Repository } from 'typeorm';
-import { Product } from '../../entities/ProductEntity';
+import { ApolloServer } from "apollo-server";
+import { gql } from "apollo-server";
+import { typeDefs } from "../../graphql/schema";
+import { resolvers } from "../../graphql/resolvers";
+import { AppSource } from "../../config/ormconfig";
+import { Repository } from "typeorm";
+import { Product } from "../../entities/ProductEntity";
 
 const GET_PRODUCTS_QUERY = gql`
   query {
     products {
-      id
-      title
-      category
-      price
-      rating
-      image
+      products {
+        id
+        title
+        category
+        price
+        rating
+        image
+      }
+      total
     }
   }
 `;
@@ -22,7 +25,9 @@ const GET_PRODUCTS_QUERY = gql`
 let server: ApolloServer;
 
 const mockProductRepository = {
-  find: jest.fn() as jest.MockedFunction<typeof mockProductRepository.find>,
+  findAndCount: jest.fn() as jest.MockedFunction<
+    typeof mockProductRepository.findAndCount
+  >,
 } as unknown as Repository<Product>;
 
 beforeAll(async () => {
@@ -45,20 +50,22 @@ afterAll(async () => {
   }
 });
 
-test('should return a list of products', async () => {
+test("should return a list of products", async () => {
   const mockProducts = [
     {
-      id: '2',
-      title: 'Eyeshadow Palette with Mirror',
-      category: 'beauty',
+      id: "2",
+      title: "Eyeshadow Palette with Mirror",
+      category: "beauty",
       price: 19.99,
       rating: 3.28,
-      image: '',
+      image: "",
     },
   ];
 
- 
-  (mockProductRepository.find as jest.Mock).mockResolvedValue(mockProducts);
+  (mockProductRepository.findAndCount as jest.Mock).mockResolvedValue([
+    mockProducts,
+    1,
+  ]);
 
   const response = await server.executeOperation({
     query: GET_PRODUCTS_QUERY,
@@ -68,6 +75,8 @@ test('should return a list of products', async () => {
 
   expect(errors).toBeUndefined();
   expect(data?.products).toBeDefined();
-  expect(Array.isArray(data?.products)).toBe(true);
-  expect(data?.products[0]).toMatchObject(mockProducts[0]);
+  expect(data?.products.products).toBeDefined();
+  expect(Array.isArray(data?.products.products)).toBe(true);
+  expect(data?.products.products[0]).toMatchObject(mockProducts[0]);
+  expect(data?.products.total).toBe(1); // Total products
 });

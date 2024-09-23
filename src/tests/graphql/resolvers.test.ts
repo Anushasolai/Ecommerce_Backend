@@ -1,88 +1,125 @@
+jest.mock("../../graphql/jwtmiddleware", () => ({
+  verifyToken: jest.fn().mockReturnValue({ userId: 1 }),
+}));
+
 import { resolvers } from "../../graphql/resolvers";
 import { Product } from "../../entities/ProductEntity";
-import { AppSource } from "../../config/ormconfig";
-import axios from "axios";
 import { Repository } from "typeorm";
+import axios from "axios";
 
 jest.mock("axios");
 
-const EXTERNAL_API_URL = "https://dummyjson.com/products";
-
-const productRepository = {
-  find: jest.fn(),
-  findOneBy: jest.fn(),
-  create: jest.fn(),
-  save: jest.fn(),
-  delete: jest.fn(),
-} as unknown as jest.Mocked<Repository<Product>>;
-
-const mockProduct = {
-  id: 5,
-  title: "Test Product",
-  category: "Test Category",
-  price: 100,
-  rating: 4.5,
-  image: "",
-};
-
-const mockProductWithImage = {
-  ...mockProduct,
-  image: "https://example.com/default-image.jpg",
-};
-
 describe("GraphQL Resolvers", () => {
-  beforeAll(async () => {
-    await AppSource.initialize();
+  let productRepository: Repository<Product>;
+
+  beforeEach(() => {
+    productRepository = {
+      save: jest.fn(),
+      findOneBy: jest.fn(),
+      findAndCount: jest.fn(),
+    } as unknown as Repository<Product>;
   });
 
-  afterAll(async () => {
-    await AppSource.destroy();
-  });
+  describe("fetchAndStoreProducts", () => {
+    it("should fetch and store products successfully", async () => {
+      (axios.get as jest.Mock).mockResolvedValue({
+        data: {
+          products: [
+            {
+              id: 1,
+              title: "Test Product 1",
+              category: "Category 1",
+              price: 100,
+              rating: 4.5,
+              images: ["image1.jpg"],
+            },
+          ],
+        },
+      });
 
-  it("should fetch and store products from external API", async () => {
-    (axios.get as jest.Mock).mockResolvedValue({
-      data: { products: [mockProductWithImage] },
+      const result = await resolvers.Mutation.fetchAndStoreProducts(
+        null,
+        {},
+        { productRepository, token: "valid-token" }
+      );
+
+      expect(axios.get).toHaveBeenCalledWith("https://dummyjson.com/products");
+      expect(productRepository.save).toHaveBeenCalledWith([
+        {
+          id: 1,
+          title: "Test Product 1",
+          category: "Category 1",
+          price: 100,
+          rating: 4.5,
+          image: "image1.jpg",
+        },
+      ]);
+      expect(result).toEqual([
+        {
+          id: 1,
+          title: "Test Product 1",
+          category: "Category 1",
+          price: 100,
+          rating: 4.5,
+          image: "image1.jpg",
+        },
+      ]);
     });
 
-    productRepository.save.mockResolvedValue(mockProductWithImage);
+    it("should handle API errors gracefully", async () => {
+      (axios.get as jest.Mock).mockRejectedValue(new Error("API Error"));
 
-    const result = await resolvers.Mutation.fetchAndStoreProducts(null, null, {
-      productRepository,
+      await expect(
+        resolvers.Mutation.fetchAndStoreProducts(
+          null,
+          {},
+          { productRepository, token: "valid-token" }
+        )
+      ).rejects.toThrow("Failed to fetch and store products");
     });
 
-    expect(axios.get).toHaveBeenCalledWith(EXTERNAL_API_URL);
-    expect(productRepository.save).toHaveBeenCalledWith([mockProductWithImage]);
-    expect(result).toEqual([mockProductWithImage]);
-  });
+    it("should use default image if image is null", async () => {
+      (axios.get as jest.Mock).mockResolvedValue({
+        data: {
+          products: [
+            {
+              id: 2,
+              title: "Test Product 2",
+              category: "Category 2",
+              price: 200,
+              rating: 4.0,
+              images: [],
+            },
+          ],
+        },
+      });
 
-  it("should fetch and store products with default image if image is null", async () => {
-    const productWithNullImage = { ...mockProduct, image: null };
+      const result = await resolvers.Mutation.fetchAndStoreProducts(
+        null,
+        {},
+        { productRepository, token: "valid-token" }
+      );
 
-    (axios.get as jest.Mock).mockResolvedValue({
-      data: { products: [productWithNullImage] },
+      expect(productRepository.save).toHaveBeenCalledWith([
+        {
+          id: 2,
+          title: "Test Product 2",
+          category: "Category 2",
+          price: 200,
+          rating: 4.0,
+          image: "https://example.com/default-image.jpg",
+        },
+      ]);
+      expect(result).toEqual([
+        {
+          id: 2,
+          title: "Test Product 2",
+          category: "Category 2",
+          price: 200,
+          rating: 4.0,
+          image: "https://example.com/default-image.jpg",
+        },
+      ]);
     });
-
-    productRepository.save.mockResolvedValue({
-      ...productWithNullImage,
-      image: "https://example.com/default-image.jpg",
-    });
-
-    const result = await resolvers.Mutation.fetchAndStoreProducts(null, null, {
-      productRepository,
-    });
-
-    expect(axios.get).toHaveBeenCalledWith(EXTERNAL_API_URL);
-    expect(productRepository.save).toHaveBeenCalledWith([
-      {
-        ...productWithNullImage,
-        image: "https://example.com/default-image.jpg",
-      },
-    ]);
-    expect(result).toEqual([
-      {
-        ...productWithNullImage,
-        image: "https://example.com/default-image.jpg",
-      },
-    ]);
   });
 });
