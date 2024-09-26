@@ -78,5 +78,5 @@ test("should return a list of products", async () => {
   expect(data?.products.products).toBeDefined();
   expect(Array.isArray(data?.products.products)).toBe(true);
   expect(data?.products.products[0]).toMatchObject(mockProducts[0]);
-  expect(data?.products.total).toBe(1); // Total products
+  expect(data?.products.total).toBe(1); 
 });
