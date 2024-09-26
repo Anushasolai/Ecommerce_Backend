@@ -1,15 +1,44 @@
+// {
+//   "compilerOptions": {
+//     "lib": ["es2017"],
+//     "target": "es2017",
+//     "module": "commonjs",
+//     "moduleResolution": "node",
+//     "outDir": "./build",
+//     "emitDecoratorMetadata": true,
+//     "experimentalDecorators": true,
+//     "sourceMap": true,
+//     "esModuleInterop": true,
+//     "rootDir": "src",
+//     "forceConsistentCasingInFileNames": true,
+//     "strict": true,
+//     "strictPropertyInitialization": false,
+//     "skipLibCheck": true
+//   },
+//   "include": ["src/**/*", "tests/**/*", "types.d.ts"],
+//   "exclude": ["node_modules"]
+// }
+
 {
-    "compilerOptions": {
-      "target": "ES6",
-      "module": "commonjs",
-      "outDir": "./dist",
-      "rootDir": "./src",
-      "strict": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
-    },
-    "include": ["src/**/*.ts"],
-    "exclude": ["node_modules"]
-  }
-  
+  "compilerOptions": {
+    "lib": ["es2017"],
+    "target": "es2017",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./build",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "src",
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true,
+    "baseUrl": "./src",
+    "typeRoots": ["./node_modules/@types", "./src/types"]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules"]
+}
